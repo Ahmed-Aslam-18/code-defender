@@ -51,7 +51,7 @@ export class WebhooksProcessor extends WorkerHost {
             console.log('API Key exists:', !!apiKey);
             
             const ai = new GoogleGenAI({apiKey: apiKey});
-            console.log("GoogleGenAI client created");
+            console.log("GoogleGenAI client created Successfully");
 
             const responses: string[] = [];
             for (const file of files) {
