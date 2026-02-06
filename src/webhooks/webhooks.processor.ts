@@ -14,15 +14,22 @@ export class WebhooksProcessor extends WorkerHost {
     }
 
     async process(job: Job<any>): Promise<any> {
-        const files = await this.getFileForPR(job.data.number, job.data.repository.owner.login, job.data.repository.name);
-        const reviewableFiles = files.filter((f: PRFile) =>
-            f.patch &&
-            f.filename.endsWith('.ts')
-          );
-       console.log('reviewableFiles', reviewableFiles.length);
-       const response = await this.getResponse(reviewableFiles);
+        try {
+            const files = await this.getFileForPR(job.data.number, job.data.repository.owner.login, job.data.repository.name);
+            const reviewableFiles = files.filter((f: PRFile) =>
+                f.patch &&
+                f.filename.endsWith('.ts')
+              );
+           console.log('reviewableFiles', reviewableFiles.length);
+           console.log('About to call getResponse...');
+           const response = await this.getResponse(reviewableFiles);
+           console.log('getResponse completed');
 
-        return 'In progress';
+            return 'In progress';
+        } catch (error) {
+            console.error('Error in process:', error);
+            throw error;
+        }
     }
 
     async getFileForPR(pullRequestNumber: number, owner: string, repo: string): Promise<any> {
@@ -38,23 +45,33 @@ export class WebhooksProcessor extends WorkerHost {
     }
 
     async getResponse(files: PRFiles) {
-        const ai = new GoogleGenAI({apiKey: this.getGeminiApiKey()});
-        console.log("In Code Reviewer")
+        try {
+            console.log("In Code Reviewer");
+            const apiKey = this.getGeminiApiKey();
+            console.log('API Key exists:', !!apiKey);
+            
+            const ai = new GoogleGenAI({apiKey: apiKey});
+            console.log("GoogleGenAI client created");
 
-        const responses: string[] = [];
-        for (const file of files) {
-            if (file.patch) {
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: this.getPrompt(file.patch),
-                  });
-            responses.push(response.text || 'No response');
+            const responses: string[] = [];
+            for (const file of files) {
+                if (file.patch) {
+                    console.log(`Processing file: ${file.filename}`);
+                    const response = await ai.models.generateContent({
+                        model: 'gemini-2.5-flash',
+                        contents: this.getPrompt(file.patch),
+                      });
+                responses.push(response.text || 'No response');
+            }
+            }
+            console.log('//////////////////');
+            console.log('responses', responses);
+            console.log('//////////////////');
+            return responses;
+        } catch (error) {
+            console.error('Error in getResponse:', error);
+            throw error;
         }
-        }
-        console.log('//////////////////');
-        console.log('responses', responses);
-        console.log('//////////////////');
-        return responses;
     }
 
     getGithubToken() {
