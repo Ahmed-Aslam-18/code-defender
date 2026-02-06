@@ -1,116 +1,119 @@
+import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { Processor } from '@nestjs/bullmq';
-import { WorkerHost } from '@nestjs/bullmq';
-import { Octokit } from 'octokit';
-import { ConfigService } from '@nestjs/config';
-import { PRFiles, PRFile } from './pr-file.type';
-import { GoogleGenAI } from '@google/genai';
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { PRFile } from './pr-file.type';
+import { AIReviewComment } from './ai-review-comment';
+import { GithubService } from './services/github.service';
+import { AIReviewService } from './services/ai-review.service';
+import { WebhookPayloadDto } from './dto/webhook-payload.dto';
+import { GithubReviewCommentDto } from './dto/github-review-comment.dto';
+import { isFileReviewable } from './constants/file-filters.constant';
 
+@Injectable()
 @Processor('webhooks')
 export class WebhooksProcessor extends WorkerHost {
+  private readonly logger = new Logger(WebhooksProcessor.name);
 
-    constructor(private config: ConfigService) {
-        super();
-    }
+  constructor(
+    private readonly githubService: GithubService,
+    private readonly aiReviewService: AIReviewService,
+  ) {
+    super();
+  }
 
-    async process(job: Job<any>): Promise<any> {
+  async process(job: Job<WebhookPayloadDto>): Promise<string> {
+    const { number, repository, pull_request } = job.data;
+    const owner = repository.owner.login;
+    const repo = repository.name;
+    const commitId = pull_request.head.sha;
+
+    this.logger.log(`Processing PR #${number} from ${owner}/${repo}`);
+
+    try {
+      const files = await this.githubService.getPullRequestFiles(
+        owner,
+        repo,
+        number,
+      );
+
+      const reviewableFiles = this.filterReviewableFiles(files);
+      this.logger.log(`Found ${reviewableFiles.length} reviewable files`);
+
+      if (reviewableFiles.length === 0) {
+        this.logger.log('No files to review');
+        return 'No reviewable files found';
+      }
+
+      const allReviewComments = await this.reviewFiles(
+        reviewableFiles,
+        commitId,
+      );
+      this.logger.log('All review comments collected', allReviewComments);
+
+      for (const comment of allReviewComments) {
         try {
-            const files = await this.getFileForPR(job.data.number, job.data.repository.owner.login, job.data.repository.name);
-            const reviewableFiles = files.filter((f: PRFile) =>
-                f.patch &&
-                f.filename.endsWith('.ts')
-              );
-           console.log('reviewableFiles', reviewableFiles.length);
-           console.log('About to call getResponse...');
-           const response = await this.getResponse(reviewableFiles);
-           console.log('getResponse completed');
-
-            return 'In progress';
+          await this.githubService.postReviewComment(
+            owner,
+            repo,
+            number,
+            comment.commitId,
+            comment.path,
+            comment.line,
+            comment.comment,
+          );
         } catch (error) {
-            console.error('Error in process:', error);
-            throw error;
+          this.logger.error(`Failed to post comment on ${comment.path}:${comment.line}`, error);
         }
-    }
-
-    async getFileForPR(pullRequestNumber: number, owner: string, repo: string): Promise<any> {
-        const octokit = new Octokit({ auth: this.getGithubToken() });
-
-        const { data: PRFiles } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}/files', {
-            owner: owner,
-            repo: repo,
-            pull_number: pullRequestNumber
-          });
-
-        return PRFiles;
-    }
-
-    async getResponse(files: PRFiles) {
-        try {
-            console.log("In Code Reviewer");
-            const apiKey = this.getGeminiApiKey();
-            console.log('API Key exists:', !!apiKey);
-            
-            const ai = new GoogleGenAI({apiKey: apiKey});
-            console.log("GoogleGenAI client created Successfully");
-
-            const responses: string[] = [];
-            for (const file of files) {
-                if (file.patch) {
-                    console.log(`Processing file: ${file.filename}`);
-                    const response = await ai.models.generateContent({
-                        model: 'gemini-2.5-flash',
-                        contents: this.getPrompt(file.patch),
-                      });
-                responses.push(response.text || 'No response');
-            }
-            }
-            console.log('//////////////////');
-            console.log('responses', responses);
-            console.log('//////////////////');
-            return responses;
-        } catch (error) {
-            console.error('Error in getResponse:', error);
-            throw error;
-        }
-    }
-
-    getGithubToken() {
-        return this.config.get<string>('GITHUB_TOKEN');
       }
 
-      getGeminiApiKey() {
-        return this.config.get<string>('GEMINI_API_KEY');
+      this.logger.log(
+        `Review completed with ${allReviewComments.length} comments posted`,
+      );
+
+      return `Reviewed ${reviewableFiles.length} files, found ${allReviewComments.length} issues`;
+    } catch (error) {
+      this.logger.error(`Error processing PR #${number}:`, error);
+      throw error;
+    }
+  }
+
+  private filterReviewableFiles(files: PRFile[]): PRFile[] {
+    return files.filter(
+      (file) => file.patch && isFileReviewable(file.filename),
+    );
+  }
+
+  private async reviewFiles(
+    files: PRFile[],
+    commitId: string,
+  ): Promise<GithubReviewCommentDto[]> {
+    const allComments: GithubReviewCommentDto[] = [];
+
+    for (const file of files) {
+      if (!file.patch) continue;
+
+      try {
+        const comments = await this.aiReviewService.reviewCodePatch(
+          file.filename,
+          file.patch,
+        );
+
+        const enrichedComments: GithubReviewCommentDto[] = comments.map(
+          (comment: AIReviewComment) => ({
+            path: file.filename,
+            line: comment.line,
+            comment: `**[${comment.severity.toUpperCase()}]** ${comment.comment}`,
+            commitId,
+            severity: comment.severity,
+          }),
+        );
+
+        allComments.push(...enrichedComments);
+      } catch (error) {
+        this.logger.error(`Failed to review ${file.filename}:`, error);
       }
+    }
 
-      getPrompt(patch: string) {
-        return `
-        You are a senior software engineer performing a strict PR review.
-
-        Focus on:
-
-        - bugs
-        - security issues
-        - performance problems
-        - bad practices
-        - readability
-        - missing tests
-
-        DO NOT praise.
-        DO NOT explain obvious things.
-        ONLY report actionable issues.
-
-        Return JSON:
-
-        [
-        {
-        "line": number,
-        "severity": "low | medium | high",
-        "comment": "text"
-        }
-        ]
-
-        Here is the git diff:
-        ${patch}
-        `;
-      }
+    return allComments;
+  }
 }
