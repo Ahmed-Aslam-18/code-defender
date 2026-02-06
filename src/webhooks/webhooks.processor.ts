@@ -4,7 +4,6 @@ import { WorkerHost } from '@nestjs/bullmq';
 import { Octokit } from 'octokit';
 import { ConfigService } from '@nestjs/config';
 import { PRFiles, PRFile } from './pr-file.type';
-import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 
 @Processor('webhooks')
@@ -60,10 +59,6 @@ export class WebhooksProcessor extends WorkerHost {
 
     getGithubToken() {
         return this.config.get<string>('GITHUB_TOKEN');
-      }
-
-      getOpenAIKey() {
-        return this.config.get<string>('OPENAI_API_KEY');
       }
 
       getGeminiApiKey() {
