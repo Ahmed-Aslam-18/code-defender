@@ -89,6 +89,8 @@ export class WebhooksProcessor extends WorkerHost {
   ): Promise<GithubReviewCommentDto[]> {
     const allComments: GithubReviewCommentDto[] = [];
 
+    console.log('commitId', commitId);
+
     for (const file of files) {
       if (!file.patch) continue;
 
