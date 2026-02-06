@@ -15,24 +15,18 @@ export class WebhooksProcessor extends WorkerHost {
     }
 
     async process(job: Job<any>): Promise<any> {
-        console.log(job.data);
-        console.log('Ahmed');
-        console.log(job.data.number);
-        console.log(job.data.repository.owner.login);
-        console.log(job.data.repository.name);
-
         const files = await this.getFileForPR(job.data.number, job.data.repository.owner.login, job.data.repository.name);
         const reviewableFiles = files.filter((f: PRFile) =>
             f.patch &&
             f.filename.endsWith('.ts')
           );
+       console.log('reviewableFiles', reviewableFiles.length);
        const response = await this.getResponse(reviewableFiles);
 
         return 'In progress';
     }
 
     async getFileForPR(pullRequestNumber: number, owner: string, repo: string): Promise<any> {
-        console.log(this.getGithubToken());
         const octokit = new Octokit({ auth: this.getGithubToken() });
 
         const { data: PRFiles } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}/files', {
@@ -41,13 +35,12 @@ export class WebhooksProcessor extends WorkerHost {
             pull_number: pullRequestNumber
           });
 
-        console.log('response', PRFiles);
-
         return PRFiles;
     }
 
     async getResponse(files: PRFiles) {
         const ai = new GoogleGenAI({apiKey: this.getGeminiApiKey()});
+        console.log("In Code Reviewer")
 
         const responses: string[] = [];
         for (const file of files) {
