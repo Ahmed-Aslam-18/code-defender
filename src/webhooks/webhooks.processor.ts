@@ -14,8 +14,9 @@ export class WebhooksProcessor extends WorkerHost {
     async process(job: Job<any>): Promise<any> {
         console.log(job.data);
         console.log('Ahmed');
+        console.log(job.data.number);
 
-        const files = await this.getFileForPR(job.data.pull_request.number, job.data.repository.owner.login, job.data.repository.name);
+        const files = await this.getFileForPR(job.data.number, job.data.repository.owner.name, job.data.repository.name);
         console.log(files);
         return job.data;
     }
