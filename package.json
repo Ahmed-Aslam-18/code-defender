@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@google/genai": "^1.40.0",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
@@ -27,6 +28,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "bullmq": "^5.67.3",
     "octokit": "^5.0.5",
+    "openai": "^6.18.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
