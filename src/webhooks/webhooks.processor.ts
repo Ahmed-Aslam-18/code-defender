@@ -104,7 +104,7 @@ export class WebhooksProcessor extends WorkerHost {
           (comment: AIReviewComment) => ({
             path: file.filename,
             line: comment.line,
-            comment: `**[${comment.severity.toUpperCase()}]** ${comment.comment}`,
+            comment: `**[Code Defender Review]** ${comment.comment}`,
             commitId,
             severity: comment.severity,
           }),
