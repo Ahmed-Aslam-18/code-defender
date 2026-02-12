@@ -1,16 +1,29 @@
-import { Controller, Headers, Post } from '@nestjs/common';
-import { Body } from '@nestjs/common';
+import { Controller, Headers, Post, Req } from '@nestjs/common';
 import { WebhooksService } from './webhooks.service';
+import { WebhookValidationService } from './webhook-validation.service';
+
+interface RequestWithRawBody {
+    rawBody?: Buffer;
+    body: any;
+}
 
 @Controller('webhooks')
 export class WebhooksController {
-    constructor(private readonly webhooksService: WebhooksService) { }
-
+    constructor(
+        private readonly webhooksService: WebhooksService,
+        private readonly webhookValidationService: WebhookValidationService,
+    ) { }
 
     @Post()
-    createWebhook(@Body() webhook: any,
+    async createWebhook(
+        @Req() req: RequestWithRawBody,
         @Headers('x-github-event') event: string,
+        @Headers('x-hub-signature-256') signature: string,
     ) {
+        const rawBody = req.rawBody?.toString('utf8') || JSON.stringify(req.body);
+        await this.webhookValidationService.validateWebhook(rawBody, signature);
+        const webhook = req.body;
+
         if (event === 'pull_request') {
             if(webhook.action === 'opened') {
                 return this.webhooksService.addWebhook(webhook);
@@ -20,5 +33,9 @@ export class WebhooksController {
                 };
             }
         }
+
+        return {
+            message: 'Event received but not processed',
+        };
     }
 }

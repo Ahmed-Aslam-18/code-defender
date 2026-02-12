@@ -5,6 +5,7 @@ import { WebhooksService } from './webhooks.service';
 import { WebhooksProcessor } from './webhooks.processor';
 import { GithubService } from './services/github.service';
 import { AIReviewService } from './services/ai-review.service';
+import { WebhookValidationService } from './webhook-validation.service';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AIReviewService } from './services/ai-review.service';
     WebhooksProcessor,
     GithubService,
     AIReviewService,
+    WebhookValidationService,
   ],
 })
 export class WebhooksModule {}
