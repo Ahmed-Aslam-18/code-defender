@@ -25,6 +25,8 @@ export class WebhookValidationService {
       throw new UnauthorizedException('Missing webhook signature');
     }
 
+    console.log('This is dummy console log');
+
     try {
       const isValid = await this.webhooks.verify(body, signature);
       
