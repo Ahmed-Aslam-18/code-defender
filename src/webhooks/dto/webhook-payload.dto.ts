@@ -1,5 +1,8 @@
 export interface WebhookPayloadDto {
   number: number;
+  installation: {
+    id: number;
+  };
   repository: {
     owner: {
       login: string;
