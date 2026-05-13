@@ -1,11 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { WebhookPayloadDto } from './dto/webhook-payload.dto';
 
 @Injectable()
 export class WebhooksService {
-  constructor(@InjectQueue('webhooks') private readonly bullQueue: Queue) {}
+  constructor(
+    @InjectQueue('webhooks') private readonly bullQueue: Queue,
+    private readonly configService: ConfigService,
+  ) {}
 
   async addWebhook(webhook: {
     number: number;
@@ -17,15 +21,19 @@ export class WebhooksService {
     pull_request: { head: { sha: string } };
   }) {
     const installationId = webhook.installation?.id;
-    if (installationId == null) {
+    const pat =
+      this.configService.get<string>('GITHUB_TOKEN')?.trim() ||
+      process.env.GITHUB_TOKEN?.trim();
+
+    if (installationId == null && !pat) {
       throw new BadRequestException(
-        'Missing installation id. Use a GitHub App webhook with the app installed on this repository.',
+        'Missing installation id (GitHub App webhook). For repository webhooks, set GITHUB_TOKEN in .env.',
       );
     }
 
     const payload: WebhookPayloadDto = {
       number: webhook.number,
-      installation: { id: installationId },
+      ...(installationId != null ? { installation: { id: installationId } } : {}),
       repository: {
         owner: { login: webhook.repository.owner.login },
         name: webhook.repository.name,
