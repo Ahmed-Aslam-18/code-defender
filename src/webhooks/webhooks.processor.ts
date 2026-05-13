@@ -94,6 +94,10 @@ export class WebhooksProcessor extends WorkerHost {
 
     console.log('commitId', commitId);
 
+
+    console.log('Dummy console log');
+
+
     for (const file of files) {
       if (!file.patch) continue;
 

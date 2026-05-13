@@ -20,6 +20,7 @@ export class WebhooksController {
     async createWebhook(
         @Req() req: RequestWithRawBody,
         @Headers('x-github-event') event: string,
+        @Headers('x-github-delivery') deliveryId: string | undefined,
         @Headers('x-hub-signature-256') signature: string,
     ) {
         const usedParsedBodyFallback = !req.rawBody?.length;
@@ -29,6 +30,7 @@ export class WebhooksController {
         this.logger.log(
             [
                 `incoming webhook`,
+                `delivery=${deliveryId ?? 'missing-non-gitHub?'}`,
                 `event=${event ?? 'missing'}`,
                 `rawBodyPresent=${!usedParsedBodyFallback}`,
                 `rawBodyBytes=${req.rawBody?.length ?? 0}`,
