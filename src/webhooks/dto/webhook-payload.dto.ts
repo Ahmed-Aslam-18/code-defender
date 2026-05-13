@@ -1,6 +1,7 @@
 export interface WebhookPayloadDto {
   number: number;
-  installation: {
+  /** Present for GitHub App webhooks; omitted for repository webhooks (use `GITHUB_TOKEN`). */
+  installation?: {
     id: number;
   };
   repository: {

@@ -62,13 +62,31 @@ export class GithubService {
     });
   }
 
+  /** App installation auth, or PAT when `installationId` is omitted (repository webhooks). */
+  private getOctokit(installationId: number | undefined): Octokit {
+
+    console.log('Dummy console log');
+    if (installationId != null) {
+      return this.getOctokitForInstallation(installationId);
+    }
+    const token =
+      this.configService.get<string>('GITHUB_TOKEN')?.trim() ||
+      process.env.GITHUB_TOKEN?.trim();
+    if (!token) {
+      throw new Error(
+        'GITHUB_TOKEN must be configured for repository webhooks (payload has no installation id)',
+      );
+    }
+    return new Octokit({ auth: token });
+  }
+
   async getPullRequestFiles(
-    installationId: number,
+    installationId: number | undefined,
     owner: string,
     repo: string,
     pullNumber: number,
   ): Promise<PRFiles> {
-    const octokit = this.getOctokitForInstallation(installationId);
+    const octokit = this.getOctokit(installationId);
     const { data } = await octokit.request(
       'GET /repos/{owner}/{repo}/pulls/{pull_number}/files',
       {
@@ -82,7 +100,7 @@ export class GithubService {
   }
 
   async postReviewComment(
-    installationId: number,
+    installationId: number | undefined,
     owner: string,
     repo: string,
     pullNumber: number,
@@ -91,7 +109,7 @@ export class GithubService {
     line: number,
     comment: string,
   ): Promise<void> {
-    const octokit = this.getOctokitForInstallation(installationId);
+    const octokit = this.getOctokit(installationId);
     await octokit.request(
       'POST /repos/{owner}/{repo}/pulls/{pull_number}/comments',
       {
