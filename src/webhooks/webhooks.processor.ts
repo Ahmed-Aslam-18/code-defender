@@ -22,7 +22,8 @@ export class WebhooksProcessor extends WorkerHost {
   }
 
   async process(job: Job<WebhookPayloadDto>): Promise<string> {
-    const { number, repository, pull_request } = job.data;
+    const { number, repository, pull_request, installation } = job.data;
+    const installationId = installation.id;
     const owner = repository.owner.login;
     const repo = repository.name;
     const commitId = pull_request.head.sha;
@@ -31,6 +32,7 @@ export class WebhooksProcessor extends WorkerHost {
 
     try {
       const files = await this.githubService.getPullRequestFiles(
+        installationId,
         owner,
         repo,
         number,
@@ -53,6 +55,7 @@ export class WebhooksProcessor extends WorkerHost {
       for (const comment of allReviewComments) {
         try {
           await this.githubService.postReviewComment(
+            installationId,
             owner,
             repo,
             number,

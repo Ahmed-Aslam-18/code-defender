@@ -5,31 +5,37 @@ import { Webhooks } from '@octokit/webhooks';
 @Injectable()
 export class WebhookValidationService {
   private readonly logger = new Logger(WebhookValidationService.name);
-  private readonly webhooks: Webhooks;
+  private readonly webhooks: Webhooks | null;
 
   constructor(private readonly configService: ConfigService) {
-    const secret = this.configService.get<string>('GITHUB_WEBHOOK_SECRET');
-    
-    if (!secret) {
-      console.log('GITHUB_WEBHOOK_SECRET is not configured. Webhook validation will fail.');
-    }
+    const secret =
+      this.configService.get<string>('GITHUB_WEBHOOK_SECRET')?.trim() ||
+      process.env.GITHUB_WEBHOOK_SECRET?.trim();
 
-    this.webhooks = new Webhooks({
-      secret: secret || '',
-    });
+    if (!secret) {
+      this.logger.warn(
+        'GITHUB_WEBHOOK_SECRET is not configured. Webhook validation will fail.',
+      );
+      this.webhooks = null;
+    } else {
+      this.webhooks = new Webhooks({ secret });
+    }
   }
 
   async validateWebhook(body: string, signature: string | undefined): Promise<void> {
+    if (!this.webhooks) {
+      this.logger.error('Webhook secret not configured');
+      throw new UnauthorizedException('Webhook secret not configured');
+    }
+
     if (!signature) {
       this.logger.error('Missing x-hub-signature-256 header');
       throw new UnauthorizedException('Missing webhook signature');
     }
 
-    console.log('This is dummy console log');
-
     try {
       const isValid = await this.webhooks.verify(body, signature);
-      
+
       if (!isValid) {
         this.logger.error('Invalid webhook signature');
         throw new UnauthorizedException('Invalid webhook signature');
@@ -37,6 +43,9 @@ export class WebhookValidationService {
 
       this.logger.log('Webhook signature validated successfully');
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       this.logger.error('Webhook validation failed:', error);
       throw new UnauthorizedException('Webhook validation failed');
     }
