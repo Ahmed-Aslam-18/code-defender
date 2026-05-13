@@ -23,7 +23,7 @@ export class WebhooksProcessor extends WorkerHost {
 
   async process(job: Job<WebhookPayloadDto>): Promise<string> {
     const { number, repository, pull_request, installation } = job.data;
-    const installationId = installation.id;
+    const installationId = installation?.id;
     const owner = repository.owner.login;
     const repo = repository.name;
     const commitId = pull_request.head.sha;
@@ -91,12 +91,6 @@ export class WebhooksProcessor extends WorkerHost {
     commitId: string,
   ): Promise<GithubReviewCommentDto[]> {
     const allComments: GithubReviewCommentDto[] = [];
-
-    console.log('commitId', commitId);
-
-
-    console.log('Dummy console log');
-
 
     for (const file of files) {
       if (!file.patch) continue;
