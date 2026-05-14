@@ -26,7 +26,7 @@ export class AIReviewService {
       this.logger.debug(`Reviewing file: ${filename}`);
 
       const response = await this.ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-1.5-flash',
         contents: this.buildPrompt(patch),
       });
 
