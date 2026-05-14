@@ -65,7 +65,7 @@ export class GithubService {
   /** App installation auth, or PAT when `installationId` is omitted (repository webhooks). */
   private getOctokit(installationId: number | undefined): Octokit {
 
-    console.log('Dummy console log for testing');
+    console.log('Dummy console log for Review 1');
     if (installationId != null) {
       return this.getOctokitForInstallation(installationId);
     }
