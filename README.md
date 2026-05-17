@@ -68,3 +68,26 @@ git clone https://github.com/Ahmed-Aslam-18/code-defender
 # Install dependencies
 cd code-defender
 npm install
+
+
+## ⚙️ Environment Variables
+
+Create a `.env` file in the root directory and add the following variables:
+
+```env
+PORT=3000
+
+# GitHub Auth
+GITHUB_TOKEN=
+GITHUB_WEBHOOK_SECRET=
+GITHUB_APP_ID=
+GITHUB_APP_PRIVATE_KEY=
+GITHUB_APP_CLIENT_SECRET=
+
+# AI Services
+OPENAI_API_KEY=
+GEMINI_API_KEY=
+
+# Redis (if used for BullMQ)
+REDIS_HOST=localhost
+REDIS_PORT=6379
