@@ -10,7 +10,6 @@ function normalizePrivateKey(key: string): string {
   return key.trim().replace(/\\n/g, '\n');
 }
 
-/** Inline PEM, or path to a `.pem` file (relative to cwd unless absolute). */
 function loadPrivateKey(raw: string): string {
   const trimmed = raw.trim();
   if (trimmed.includes('BEGIN')) {
@@ -62,10 +61,8 @@ export class GithubService {
     });
   }
 
-  /** App installation auth, or PAT when `installationId` is omitted (repository webhooks). */
   private getOctokit(installationId: number | undefined): Octokit {
 
-    console.log('Dummy console log for Review 1');
     if (installationId != null) {
       return this.getOctokitForInstallation(installationId);
     }
